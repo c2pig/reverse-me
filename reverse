@@ -1,0 +1,134 @@
+#!/usr/bin/node
+
+const https = require('https');
+const http = require('http');
+const url = require('url');
+const zlib = require('zlib');
+const { pipeline, Transform } = require('stream');
+const util = require('util');
+
+const flipStyles = `
+$&<style>
+  img { -webkit-transform: scaleX(-1) scaleY(-1);transform: scaleX(-1) scaleY(-1);}
+  body { transform: scale(-1, 1);-moz-transform: scale(-1, 1);-webkit-transform: scale(-1, 1); }
+</style>
+`
+const sLog = util.debuglog('app.stream');
+const nwLog = util.debuglog('app.network');
+let fqdn = process.argv.slice(2)[0];
+
+const noopStream = () => (new Transform({
+  construct(cb) {
+    cb();
+  },
+  transform(chunk, _, cb) {
+    cb(null, chunk);
+  }
+}));
+
+const dataDecodeStream = (encoding = 'no-encoding') => {
+  // content-encoding: br | compress | deflate not supported
+  sLog("found encoding [%s]", encoding);
+  if(encoding === 'gzip') {
+    sLog("add gzip stream");
+    return zlib.createGunzip();
+  } else {
+    return noopStream();
+  }
+}
+
+const reverse = (contentType) => {
+  sLog("found content-type [%s]", contentType);
+  if(contentType && contentType.includes("text/html")) {
+    sLog("add reverse content stream");
+    return new Transform({
+      decodeStrings: false,
+      construct(cb) {
+        this.data = '';
+        cb();
+      },
+      transform(chunk, _, cb) {
+        this.data += chunk;
+        cb();
+      },
+      flush(cb) {
+        if(this.data) {
+          sLog("reverse content - [stream size(%s)]", this.data.length);
+          const flipContent = this.data.replace('<head>', flipStyles)
+            .replace(/https:\/\/`${fqdn}`/g, 'http://localhost:8080');
+          this.push(flipContent);
+          this.data = '';
+        }
+        cb();
+      }
+    })
+  } else {
+    return noopStream();
+  }
+};
+
+const getOptions = (fqdn, path) => {
+  return {
+    hostname: `${fqdn}`,
+    port: 443,
+    path, 
+    method: 'GET',
+    headers: { 'host': `${fqdn}` }
+  };
+}
+
+const getPage = (options, redirectLoop = 0) => {
+  nwLog("> request path[%s], domain[%s]", options.path, options.hostname);
+  return new Promise((resolve, reject) => {
+    if (redirectLoop > 5) {
+      reject(`Too many redirection(${redirectLoop})`);
+    }
+    https.get(options, (proxiedRes) => {
+      const {statusCode, headers: { location = '' } } = proxiedRes;
+      const hostname = url.parse(location).hostname; 
+      nwLog("< origin response status code [%s]", statusCode)
+      if (statusCode > 299 && statusCode < 400) {
+        if(hostname) {
+          fqdn = hostname;
+        }
+        nwLog("> request redirect to [%s]", location);
+        resolve({type: 'redirect', options: getOptions(fqdn, location)});
+      } else {
+        resolve({type: 'complete', result: proxiedRes });
+      }
+    });
+  }).then((chain) => {
+    const { type, options, result } = chain;
+    nwLog("| chain action [%s] ", type)
+    if(type === 'complete') {
+      return result; 
+    }
+    if(type === 'redirect') {
+      return getPage(options, redirectLoop + 1);
+    }
+    throw new Error("Something went wrong in redirect chain");
+  });
+}
+
+const proxy = async (req, res) => {
+  try {
+    const proxiedRes = await getPage(getOptions(fqdn, req.url));
+    const contentEncoding = proxiedRes.headers['content-encoding'];
+    const contentType = proxiedRes.headers['content-type'];
+    delete proxiedRes.headers['content-encoding']; 
+    res.writeHead(proxiedRes.statusCode, proxiedRes.headers);
+    pipeline(
+      proxiedRes,
+      dataDecodeStream(contentEncoding),
+      reverse(contentType),
+      res,
+      (err) => { 
+        if(err) throw new Error(err);
+        sLog("stream transform complete")
+      } 
+    )
+  } catch(e) {
+    console.error(e);
+  }
+}
+http.createServer(proxy).listen(8080);
