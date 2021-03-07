@@ -1,13 +1,13 @@
 ### Pre-requisite
 * Node version 10 or above
-* `/usr/bin/node` exists OR use `node reverse <domain>` instead
+* `/usr/bin/node` exists OR use `node reverseme <domain>` instead
 
-### How-To Run
+### How-to Run
 
 ```
 git clone git@github.com:c2pig/reverse-me.git && cd reverse-me
-chmod a+x reverse
-./reverse bbc.com
+chmod a+x reverseme
+./reverseme bbc.com
 ```
 
 ### Debugging
@@ -18,7 +18,7 @@ Two set of logging output for debug purpose
 Example: Turn on all logging
 ```
 export NODE_DEBUG=app*
-./reverse bbc.com
+./reverseme bbc.com
 ```
 
 ---
