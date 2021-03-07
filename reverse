@@ -9,7 +9,7 @@ const util = require('util');
 
 const flipStyles = `
 $&<style>
-  img { -webkit-transform: scaleX(-1) scaleY(-1);transform: scaleX(-1) scaleY(-1);}
+  img { -webkit-transform: scale(-1, -1) ;transform: scale(-1, -1) ;}
   body { transform: scale(-1, 1);-moz-transform: scale(-1, 1);-webkit-transform: scale(-1, 1); }
 </style>
 `
@@ -18,9 +18,7 @@ const nwLog = util.debuglog('app.network');
 let fqdn = process.argv.slice(2)[0];
 
 const noopStream = () => (new Transform({
-  construct(cb) {
-    cb();
-  },
+  objectMode: true,
   transform(chunk, _, cb) {
     cb(null, chunk);
   }
@@ -79,6 +77,7 @@ const getOptions = (fqdn, path) => {
 
 const getPage = (options, redirectLoop = 0) => {
   nwLog("> request path[%s], domain[%s]", options.path, options.hostname);
+  nwLog("> request headers %s", options.headers);
   return new Promise((resolve, reject) => {
     if (redirectLoop > 5) {
       reject(`Too many redirection(${redirectLoop})`);
