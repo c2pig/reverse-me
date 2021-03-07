@@ -1,6 +1,6 @@
 ### Pre-requisite
 * Node version 10 or above
-* `/usr/bin/node` exist OR use `node reverse <domain>` instead
+* `/usr/bin/node` exists OR use `node reverse <domain>` instead
 
 ### How-To Run
 
@@ -25,10 +25,10 @@ export NODE_DEBUG=app*
 
 ### Appendix
 
-#### Coding Principle
+#### :pushpin: Coding Principle
 > Learn the hard way -- Have no for Node external library
 
-#### Solution-Options
+#### :pushpin: Solution-Options
 ##### Option 1: In-memory processing
 Fetched response is stored in memory for processing until write to target response
 > Pros
@@ -50,7 +50,7 @@ Fetched response is stored in memory for processing until write to target respon
 - Complicated solution
 - Debugging is hard
 
-#### High level diagram
+#### :pushpin: High level diagram
 ![High-level-diagram](./assets/stream-flow.png)
 
 #### Test Data
@@ -64,13 +64,13 @@ Purpose: Manual test application behaviour against different content-encoding, c
 * baidu.com
 
 
-#### Known Bugs
+#### :pushpin: Known Bugs
 
 * yahoo.com main content cannot display (could be due to `/serviceworker.js` return 404
 * An `undefined` prepend `<html>..</html>` 
 
 
-#### Lesson Learnt
+#### :pushpin: Lesson Learnt
 | Challenge | What does it mean? |
 | --- | ----------- |
 |HTTP Redirection handling | Redirect chain in `Promise` is error-prone and difficult to troubleshoot the error.  Life will be easier if library such as `request`, `node-fetch` is used for handling it.|
